@@ -276,74 +276,68 @@
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+
+        .role-pick { transition: all 0.2s; }
+        .role-pick.active { background: var(--accent) !important; color: white !important; border-color: var(--accent) !important; }
     </style>
 </head>
 <body>
 
-<!-- SETUP (secret: ?setup=true) -->
-<div id="setup-screen" style="display:none;">
-    <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;position:relative;z-index:1;">
-        <div class="login-card" style="max-width:480px;">
-            <span class="emoji-icon">🔧</span>
-            <h1>Account Setup</h1>
-            <p class="subtitle">Create the family accounts (one-time setup)</p>
-
-            <div class="form-group">
-                <label>Aaron's Email</label>
-                <input type="email" id="setup-aaron-email" value="aarontopol@hotmail.com">
-            </div>
-            <div class="form-group">
-                <label>Aaron's Password</label>
-                <input type="password" id="setup-aaron-pw" placeholder="Min 6 characters">
-            </div>
-
-            <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
-
-            <div class="form-group">
-                <label>Carly's Email</label>
-                <input type="email" id="setup-carly-email" value="carlytopol@hotmail.com">
-            </div>
-            <div class="form-group">
-                <label>Carly's Password</label>
-                <input type="password" id="setup-carly-pw" placeholder="Min 6 characters">
-            </div>
-
-            <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
-
-            <div class="form-group">
-                <label>Molly's Email</label>
-                <input type="email" id="setup-molly-email" placeholder="molly@email.com">
-            </div>
-            <div class="form-group">
-                <label>Molly's Password</label>
-                <input type="password" id="setup-molly-pw" placeholder="Min 6 characters">
-            </div>
-
-            <button class="btn btn-primary" onclick="createAccounts()" id="setup-btn">Create Accounts ✨</button>
-            <p class="error-msg" id="setup-error"></p>
-            <div id="setup-success" style="display:none;margin-top:16px;padding:16px;background:var(--green-light);border-radius:var(--radius-sm);color:var(--green-dark);font-weight:500;">
-                ✅ All accounts created! You're now logged in as Aaron. <a href="/" style="color:var(--accent);font-weight:600;">Go to Molly Jobs →</a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- LOGIN -->
+<!-- LOGIN / SIGN UP -->
 <div id="login-screen">
-    <div class="login-card">
+    <div class="login-card" style="max-width:440px;">
         <span class="emoji-icon">✨</span>
         <h1>Molly Jobs</h1>
         <p class="subtitle">The family job board</p>
-        <div class="form-group">
-            <label>Email</label>
-            <input type="email" id="login-email" placeholder="your@email.com">
+
+        <!-- Sign In Form -->
+        <div id="signin-form">
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="login-email" placeholder="your@email.com">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleLogin()">
+            </div>
+            <button class="btn btn-primary" onclick="handleLogin()">Sign In</button>
+            <p class="error-msg" id="login-error"></p>
+            <p style="margin-top:20px;font-size:0.9rem;color:var(--text-muted);">
+                Don't have an account? <a href="#" onclick="toggleAuthForm('signup');return false;" style="color:var(--accent);font-weight:600;">Sign Up</a>
+            </p>
         </div>
-        <div class="form-group">
-            <label>Password</label>
-            <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleLogin()">
+
+        <!-- Sign Up Form -->
+        <div id="signup-form" style="display:none;">
+            <div class="form-group">
+                <label>Your Name</label>
+                <input type="text" id="signup-name" placeholder="e.g. Aaron">
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" id="signup-email" placeholder="your@email.com">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="signup-password" placeholder="Min 6 characters">
+            </div>
+            <div class="form-group">
+                <label>I want to...</label>
+                <div style="display:flex;gap:8px;margin-top:4px;">
+                    <button class="btn btn-secondary btn-small role-pick active" data-role="poster" onclick="pickRole('poster')" style="flex:1;padding:14px 12px;">
+                        📝 Post Jobs
+                    </button>
+                    <button class="btn btn-secondary btn-small role-pick" data-role="doer" onclick="pickRole('doer')" style="flex:1;padding:14px 12px;">
+                        ✋ Do Jobs
+                    </button>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="handleSignup()">Create Account</button>
+            <p class="error-msg" id="signup-error"></p>
+            <p style="margin-top:20px;font-size:0.9rem;color:var(--text-muted);">
+                Already have an account? <a href="#" onclick="toggleAuthForm('signin');return false;" style="color:var(--accent);font-weight:600;">Sign In</a>
+            </p>
         </div>
-        <button class="btn btn-primary" onclick="handleLogin()">Sign In</button>
-        <p class="error-msg" id="login-error"></p>
     </div>
 </div>
 
@@ -446,72 +440,58 @@ let emailJSConfig = null;
 const NOTIFY_EMAILS = ['aarontopol@hotmail.com', 'carlytopol@hotmail.com'];
 
 // ══════════════════════════════════
-// Setup Mode (?setup=true)
+// Auth: Login / Signup
 // ══════════════════════════════════
-const isSetupMode = new URLSearchParams(window.location.search).get('setup') === 'true';
+let selectedRole = 'poster';
 
-if (isSetupMode) {
-    document.getElementById('setup-screen').style.display = 'block';
-    document.getElementById('login-screen').style.display = 'none';
+function toggleAuthForm(which) {
+    document.getElementById('signin-form').style.display = which === 'signin' ? 'block' : 'none';
+    document.getElementById('signup-form').style.display = which === 'signup' ? 'block' : 'none';
 }
 
-async function createAccounts() {
-    const fields = [
-        { emailId: 'setup-aaron-email', pwId: 'setup-aaron-pw', name: 'Aaron', role: 'parent' },
-        { emailId: 'setup-carly-email', pwId: 'setup-carly-pw', name: 'Carly', role: 'parent' },
-        { emailId: 'setup-molly-email', pwId: 'setup-molly-pw', name: 'Molly', role: 'child' },
-    ];
+function pickRole(role) {
+    selectedRole = role;
+    document.querySelectorAll('.role-pick').forEach(b => {
+        b.classList.toggle('active', b.dataset.role === role);
+    });
+}
 
-    for (const f of fields) {
-        const email = document.getElementById(f.emailId).value.trim();
-        const pw = document.getElementById(f.pwId).value.trim();
-        if (!email || pw.length < 6) {
-            const err = document.getElementById('setup-error');
-            err.textContent = `Please fill in ${f.name}'s email and password (min 6 characters).`;
-            err.style.display = 'block';
-            setTimeout(() => err.style.display = 'none', 5000);
-            return;
-        }
-    }
+async function handleSignup() {
+    const name = document.getElementById('signup-name').value.trim();
+    const email = document.getElementById('signup-email').value.trim();
+    const pw = document.getElementById('signup-password').value;
+    const errEl = document.getElementById('signup-error');
 
-    const btn = document.getElementById('setup-btn');
-    btn.textContent = 'Creating accounts...';
-    btn.disabled = true;
+    if (!name) { showErr(errEl, 'Please enter your name.'); return; }
+    if (!email) { showErr(errEl, 'Please enter your email.'); return; }
+    if (pw.length < 6) { showErr(errEl, 'Password must be at least 6 characters.'); return; }
 
     try {
-        for (const f of fields) {
-            const email = document.getElementById(f.emailId).value.trim();
-            const pw = document.getElementById(f.pwId).value.trim();
-            try {
-                const cred = await auth.createUserWithEmailAndPassword(email, pw);
-                await db.collection('users').doc(cred.user.uid).set({
-                    email, name: f.name, role: f.role
-                });
-            } catch (e) {
-                if (e.code === 'auth/email-already-in-use') continue;
-                throw e;
-            }
-        }
-        // Log in as Aaron
-        const aaronEmail = document.getElementById('setup-aaron-email').value.trim();
-        const aaronPw = document.getElementById('setup-aaron-pw').value.trim();
-        await auth.signInWithEmailAndPassword(aaronEmail, aaronPw);
-        document.getElementById('setup-success').style.display = 'block';
-        btn.style.display = 'none';
+        const cred = await auth.createUserWithEmailAndPassword(email, pw);
+        const role = selectedRole === 'poster' ? 'parent' : 'child';
+        await db.collection('users').doc(cred.user.uid).set({
+            email, name, role
+        });
+        // onAuthStateChanged will handle the rest
     } catch (e) {
-        const err = document.getElementById('setup-error');
-        err.textContent = e.message;
-        err.style.display = 'block';
-        btn.textContent = 'Create Accounts ✨';
-        btn.disabled = false;
+        if (e.code === 'auth/email-already-in-use') {
+            showErr(errEl, 'An account with this email already exists. Try signing in.');
+        } else {
+            showErr(errEl, e.message);
+        }
     }
 }
 
+function showErr(el, msg) {
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => el.style.display = 'none', 5000);
+}
+
 // ══════════════════════════════════
-// Auth
+// Auth State
 // ══════════════════════════════════
 auth.onAuthStateChanged(async user => {
-    if (isSetupMode) return; // Don't redirect during setup
     if (user) {
         await loadUserRole(user);
         showScreen('app');
@@ -529,12 +509,9 @@ async function loadUserRole(user) {
         const data = doc.data();
         currentUser = { uid: user.uid, email: user.email, role: data.role, name: data.name };
     } else {
-        const email = user.email.toLowerCase();
-        let role = 'child', name = 'Molly';
-        if (email.includes('aaron')) { role = 'parent'; name = 'Aaron'; }
-        else if (email.includes('carly')) { role = 'parent'; name = 'Carly'; }
-        await db.collection('users').doc(user.uid).set({ email: user.email, role, name });
-        currentUser = { uid: user.uid, email: user.email, role, name };
+        // Fallback — shouldn't happen since signup creates the doc
+        await db.collection('users').doc(user.uid).set({ email: user.email, role: 'child', name: user.email.split('@')[0] });
+        currentUser = { uid: user.uid, email: user.email, role: 'child', name: user.email.split('@')[0] };
     }
     document.getElementById('user-name').textContent = currentUser.name;
     document.getElementById('role-dot').style.background = currentUser.role === 'parent' ? 'var(--blue)' : 'var(--accent)';
@@ -552,10 +529,9 @@ async function handleLogin() {
         await auth.signInWithEmailAndPassword(email, pw);
     } catch (e) {
         const el = document.getElementById('login-error');
-        el.textContent = (e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential')
+        const msg = (e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential')
             ? 'Invalid email or password.' : e.message;
-        el.style.display = 'block';
-        setTimeout(() => el.style.display = 'none', 4000);
+        showErr(el, msg);
     }
 }
 
