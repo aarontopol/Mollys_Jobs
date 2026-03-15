@@ -280,6 +280,54 @@
 </head>
 <body>
 
+<!-- SETUP (secret: ?setup=true) -->
+<div id="setup-screen" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:center;min-height:100vh;position:relative;z-index:1;">
+        <div class="login-card" style="max-width:480px;">
+            <span class="emoji-icon">🔧</span>
+            <h1>Account Setup</h1>
+            <p class="subtitle">Create the family accounts (one-time setup)</p>
+
+            <div class="form-group">
+                <label>Aaron's Email</label>
+                <input type="email" id="setup-aaron-email" value="aarontopol@hotmail.com">
+            </div>
+            <div class="form-group">
+                <label>Aaron's Password</label>
+                <input type="password" id="setup-aaron-pw" placeholder="Min 6 characters">
+            </div>
+
+            <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+
+            <div class="form-group">
+                <label>Carly's Email</label>
+                <input type="email" id="setup-carly-email" value="carlytopol@hotmail.com">
+            </div>
+            <div class="form-group">
+                <label>Carly's Password</label>
+                <input type="password" id="setup-carly-pw" placeholder="Min 6 characters">
+            </div>
+
+            <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;">
+
+            <div class="form-group">
+                <label>Molly's Email</label>
+                <input type="email" id="setup-molly-email" placeholder="molly@email.com">
+            </div>
+            <div class="form-group">
+                <label>Molly's Password</label>
+                <input type="password" id="setup-molly-pw" placeholder="Min 6 characters">
+            </div>
+
+            <button class="btn btn-primary" onclick="createAccounts()" id="setup-btn">Create Accounts ✨</button>
+            <p class="error-msg" id="setup-error"></p>
+            <div id="setup-success" style="display:none;margin-top:16px;padding:16px;background:var(--green-light);border-radius:var(--radius-sm);color:var(--green-dark);font-weight:500;">
+                ✅ All accounts created! You're now logged in as Aaron. <a href="/" style="color:var(--accent);font-weight:600;">Go to Molly Jobs →</a>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- LOGIN -->
 <div id="login-screen">
     <div class="login-card">
@@ -398,9 +446,72 @@ let emailJSConfig = null;
 const NOTIFY_EMAILS = ['aarontopol@hotmail.com', 'carlytopol@hotmail.com'];
 
 // ══════════════════════════════════
+// Setup Mode (?setup=true)
+// ══════════════════════════════════
+const isSetupMode = new URLSearchParams(window.location.search).get('setup') === 'true';
+
+if (isSetupMode) {
+    document.getElementById('setup-screen').style.display = 'block';
+    document.getElementById('login-screen').style.display = 'none';
+}
+
+async function createAccounts() {
+    const fields = [
+        { emailId: 'setup-aaron-email', pwId: 'setup-aaron-pw', name: 'Aaron', role: 'parent' },
+        { emailId: 'setup-carly-email', pwId: 'setup-carly-pw', name: 'Carly', role: 'parent' },
+        { emailId: 'setup-molly-email', pwId: 'setup-molly-pw', name: 'Molly', role: 'child' },
+    ];
+
+    for (const f of fields) {
+        const email = document.getElementById(f.emailId).value.trim();
+        const pw = document.getElementById(f.pwId).value.trim();
+        if (!email || pw.length < 6) {
+            const err = document.getElementById('setup-error');
+            err.textContent = `Please fill in ${f.name}'s email and password (min 6 characters).`;
+            err.style.display = 'block';
+            setTimeout(() => err.style.display = 'none', 5000);
+            return;
+        }
+    }
+
+    const btn = document.getElementById('setup-btn');
+    btn.textContent = 'Creating accounts...';
+    btn.disabled = true;
+
+    try {
+        for (const f of fields) {
+            const email = document.getElementById(f.emailId).value.trim();
+            const pw = document.getElementById(f.pwId).value.trim();
+            try {
+                const cred = await auth.createUserWithEmailAndPassword(email, pw);
+                await db.collection('users').doc(cred.user.uid).set({
+                    email, name: f.name, role: f.role
+                });
+            } catch (e) {
+                if (e.code === 'auth/email-already-in-use') continue;
+                throw e;
+            }
+        }
+        // Log in as Aaron
+        const aaronEmail = document.getElementById('setup-aaron-email').value.trim();
+        const aaronPw = document.getElementById('setup-aaron-pw').value.trim();
+        await auth.signInWithEmailAndPassword(aaronEmail, aaronPw);
+        document.getElementById('setup-success').style.display = 'block';
+        btn.style.display = 'none';
+    } catch (e) {
+        const err = document.getElementById('setup-error');
+        err.textContent = e.message;
+        err.style.display = 'block';
+        btn.textContent = 'Create Accounts ✨';
+        btn.disabled = false;
+    }
+}
+
+// ══════════════════════════════════
 // Auth
 // ══════════════════════════════════
 auth.onAuthStateChanged(async user => {
+    if (isSetupMode) return; // Don't redirect during setup
     if (user) {
         await loadUserRole(user);
         showScreen('app');
