@@ -758,6 +758,7 @@ async function postJob() {
     document.querySelectorAll('.jobtype-pick').forEach(b => b.classList.toggle('active', b.dataset.type === 'onetime'));
     closeModal('new-job-modal');
     toast('Job posted! ✨');
+    sendNewJobEmail(desc, pay, currentUser.name);
 }
 
 function acceptJob(id) {
@@ -790,6 +791,7 @@ function markPaid(id) {
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             toast('Recurring job reposted! 🔁');
+            sendNewJobEmail(job.description, job.pay, job.postedByName);
         }
     });
 }
@@ -845,6 +847,9 @@ function deleteJob(id) {
 // ══════════════════════════════════
 // Email Notifications
 // ══════════════════════════════════
+const NEW_JOB_TEMPLATE = 'template_axi5a7d';
+const MOLLY_EMAIL = 'mollytopol@gmail.com';
+
 function sendNotificationEmail(jobId) {
     if (!emailJSConfig || !emailJSConfig.pubkey || !emailJSConfig.service || !emailJSConfig.template) return;
     const job = allJobs.find(j => j.id === jobId);
@@ -856,6 +861,17 @@ function sendNotificationEmail(jobId) {
         }).then(() => console.log('Email sent to', email))
           .catch(e => console.warn('Email failed for', email, e));
     });
+}
+
+function sendNewJobEmail(description, pay, postedByName) {
+    if (!emailJSConfig || !emailJSConfig.pubkey || !emailJSConfig.service) return;
+    emailjs.send(emailJSConfig.service, NEW_JOB_TEMPLATE, {
+        to_email: MOLLY_EMAIL,
+        job_description: description,
+        job_pay: '$' + parseFloat(pay).toFixed(2),
+        posted_by: postedByName,
+    }).then(() => console.log('New job email sent to Molly'))
+      .catch(e => console.warn('New job email failed:', e));
 }
 
 // ══════════════════════════════════
