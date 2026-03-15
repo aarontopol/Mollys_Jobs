@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Molly Jobs</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✨</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,800&display=swap" rel="stylesheet">
+
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+    <!-- EmailJS -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #faf8f5;
+            --bg-card: #ffffff;
+            --text: #1a1a2e;
+            --text-muted: #6b7280;
+            --accent: #e85d75;
+            --accent-hover: #d14a62;
+            --accent-light: #fce8ec;
+            --green: #22c55e;
+            --green-light: #dcfce7;
+            --green-dark: #16a34a;
+            --blue: #3b82f6;
+            --blue-light: #dbeafe;
+            --amber: #f59e0b;
+            --amber-light: #fef3c7;
+            --purple: #8b5cf6;
+            --purple-light: #ede9fe;
+            --border: #e5e7eb;
+            --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+            --shadow-lg: 0 10px 25px rgba(0,0,0,0.08);
+            --radius: 16px;
+            --radius-sm: 10px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: radial-gradient(circle at 1px 1px, #e5e1db 1px, transparent 0);
+            background-size: 32px 32px;
+            opacity: 0.5;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        #login-screen {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-card {
+            background: var(--bg-card);
+            border-radius: 24px;
+            padding: 48px 40px;
+            box-shadow: var(--shadow-lg);
+            width: 100%;
+            max-width: 400px;
+            margin: 20px;
+            text-align: center;
+            animation: fadeUp 0.5s ease;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .login-card h1 {
+            font-family: 'Fraunces', serif;
+            font-size: 2.4rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .login-card .subtitle { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 32px; font-weight: 400; }
+        .login-card .emoji-icon { font-size: 3rem; margin-bottom: 16px; display: block; }
+
+        .form-group { margin-bottom: 16px; text-align: left; }
+        .form-group label {
+            display: block; font-size: 0.8rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            color: var(--text-muted); margin-bottom: 6px;
+        }
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%; padding: 12px 16px;
+            border: 2px solid var(--border); border-radius: var(--radius-sm);
+            font-family: 'Outfit', sans-serif; font-size: 1rem;
+            transition: border-color 0.2s; background: var(--bg);
+        }
+        .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+            outline: none; border-color: var(--accent);
+        }
+
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            padding: 12px 24px; border: none; border-radius: var(--radius-sm);
+            font-family: 'Outfit', sans-serif; font-size: 0.95rem; font-weight: 600;
+            cursor: pointer; transition: all 0.2s; text-decoration: none;
+        }
+        .btn-primary { background: var(--accent); color: white; width: 100%; padding: 14px 24px; }
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn-secondary { background: var(--bg); color: var(--text); border: 2px solid var(--border); }
+        .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-green { background: var(--green); color: white; }
+        .btn-green:hover { background: var(--green-dark); }
+        .btn-small { padding: 8px 16px; font-size: 0.85rem; border-radius: 8px; }
+        .btn-icon { padding: 8px; border-radius: 8px; background: transparent; border: none; cursor: pointer; font-size: 1.1rem; transition: all 0.2s; }
+        .btn-icon:hover { background: var(--bg); }
+
+        .error-msg { color: var(--accent); font-size: 0.85rem; margin-top: 12px; display: none; }
+
+        #app-screen { display: none; position: relative; z-index: 1; }
+
+        .top-bar {
+            border-bottom: 1px solid var(--border); padding: 16px 24px;
+            display: flex; align-items: center; justify-content: space-between;
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(12px); background: rgba(255,255,255,0.92);
+        }
+        .top-bar-left { display: flex; align-items: center; gap: 12px; }
+        .top-bar h1 {
+            font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--purple));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .top-bar .user-pill {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--bg); padding: 8px 16px; border-radius: 100px;
+            font-size: 0.85rem; font-weight: 500;
+        }
+        .top-bar .user-pill .role-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .top-bar-right { display: flex; align-items: center; gap: 8px; }
+
+        .main-content { max-width: 900px; margin: 0 auto; padding: 24px 20px 100px; }
+
+        .tabs {
+            display: flex; gap: 4px; background: var(--bg-card); padding: 4px;
+            border-radius: 14px; margin-bottom: 24px; box-shadow: var(--shadow); overflow-x: auto;
+        }
+        .tab {
+            flex: 1; padding: 12px 16px; border: none; background: transparent;
+            border-radius: var(--radius-sm); font-family: 'Outfit', sans-serif;
+            font-size: 0.9rem; font-weight: 500; cursor: pointer;
+            transition: all 0.2s; color: var(--text-muted); white-space: nowrap;
+        }
+        .tab.active { background: var(--accent); color: white; font-weight: 600; }
+        .tab:not(.active):hover { background: var(--bg); }
+        .tab-content { display: none; animation: fadeUp 0.3s ease; }
+        .tab-content.active { display: block; }
+
+        .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .stat-card { background: var(--bg-card); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); text-align: center; }
+        .stat-card .stat-number { font-family: 'Fraunces', serif; font-size: 2rem; font-weight: 700; }
+        .stat-card .stat-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px; }
+
+        .job-list { display: flex; flex-direction: column; gap: 12px; }
+        .job-card {
+            background: var(--bg-card); border-radius: var(--radius); padding: 20px 24px;
+            box-shadow: var(--shadow); transition: all 0.2s; border-left: 4px solid transparent;
+        }
+        .job-card:hover { box-shadow: var(--shadow-lg); }
+        .job-card.status-open { border-left-color: var(--blue); }
+        .job-card.status-accepted { border-left-color: var(--amber); }
+        .job-card.status-completed { border-left-color: var(--green); }
+        .job-card.status-paid { border-left-color: var(--purple); }
+
+        .job-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; gap: 12px; }
+        .job-card-header h3 { font-size: 1.05rem; font-weight: 600; line-height: 1.4; }
+        .job-pay { font-family: 'Fraunces', serif; font-size: 1.3rem; font-weight: 700; color: var(--green-dark); white-space: nowrap; }
+        .job-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.82rem; color: var(--text-muted); margin-bottom: 14px; }
+        .job-meta span { display: flex; align-items: center; gap: 4px; }
+
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px;
+            border-radius: 100px; font-size: 0.78rem; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.04em;
+        }
+        .badge-open { background: var(--blue-light); color: var(--blue); }
+        .badge-accepted { background: var(--amber-light); color: var(--amber); }
+        .badge-completed { background: var(--green-light); color: var(--green-dark); }
+        .badge-paid { background: var(--purple-light); color: var(--purple); }
+
+        .job-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+
+        .modal-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(4px); z-index: 200; align-items: center; justify-content: center; padding: 20px;
+        }
+        .modal-overlay.visible { display: flex; }
+        .modal {
+            background: var(--bg-card); border-radius: 20px; padding: 32px; width: 100%;
+            max-width: 480px; box-shadow: 0 25px 60px rgba(0,0,0,0.15); animation: fadeUp 0.3s ease;
+        }
+        .modal h2 { font-family: 'Fraunces', serif; font-size: 1.5rem; margin-bottom: 20px; }
+        .modal-actions { display: flex; gap: 8px; margin-top: 24px; justify-content: flex-end; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+        .empty-state .empty-emoji { font-size: 3rem; margin-bottom: 12px; }
+        .empty-state p { font-size: 0.95rem; }
+
+        .earnings-summary {
+            background: linear-gradient(135deg, #1a1a2e, #2d1b4e); color: white;
+            border-radius: var(--radius); padding: 28px; margin-bottom: 24px; text-align: center;
+        }
+        .earnings-summary .big-number { font-family: 'Fraunces', serif; font-size: 3rem; font-weight: 800; }
+        .earnings-summary .earnings-label { font-size: 0.85rem; opacity: 0.7; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+        .earnings-row { display: flex; justify-content: center; gap: 32px; margin-top: 16px; }
+        .earnings-row div { text-align: center; }
+        .earnings-row .num { font-family: 'Fraunces', serif; font-size: 1.4rem; font-weight: 700; }
+        .earnings-row .lbl { font-size: 0.75rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .confirm-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            z-index: 250; align-items: center; justify-content: center; padding: 20px;
+        }
+        .confirm-overlay.visible { display: flex; }
+        .confirm-box {
+            background: var(--bg-card); border-radius: 20px; padding: 32px;
+            max-width: 400px; width: 100%; text-align: center; animation: fadeUp 0.3s ease;
+        }
+        .confirm-box p { margin-bottom: 20px; font-size: 1rem; line-height: 1.5; }
+        .confirm-box .confirm-actions { display: flex; gap: 8px; justify-content: center; }
+
+        .toast {
+            position: fixed; bottom: 24px; left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            background: var(--text); color: white; padding: 14px 24px;
+            border-radius: 12px; font-size: 0.9rem; font-weight: 500;
+            z-index: 300; transition: transform 0.3s ease; box-shadow: var(--shadow-lg);
+        }
+        .toast.visible { transform: translateX(-50%) translateY(0); }
+
+        .settings-section { background: var(--bg-card); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); }
+        .settings-section h3 { font-family: 'Fraunces', serif; font-size: 1.2rem; margin-bottom: 16px; }
+        .settings-section .form-group { margin-bottom: 12px; }
+        .settings-saved { color: var(--green-dark); font-size: 0.85rem; font-weight: 500; display: none; margin-top: 8px; }
+
+        @media (max-width: 600px) {
+            .top-bar { padding: 12px 16px; }
+            .top-bar h1 { font-size: 1.1rem; }
+            .main-content { padding: 16px 12px 80px; }
+            .job-card { padding: 16px; }
+            .modal { padding: 24px; margin: 12px; }
+            .login-card { padding: 32px 24px; }
+            .tabs { gap: 2px; }
+            .tab { padding: 10px 12px; font-size: 0.82rem; }
+            .earnings-summary .big-number { font-size: 2.2rem; }
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+    <div class="login-card">
+        <span class="emoji-icon">✨</span>
+        <h1>Molly Jobs</h1>
+        <p class="subtitle">The family job board</p>
+        <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="login-email" placeholder="your@email.com">
+        </div>
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')handleLogin()">
+        </div>
+        <button class="btn btn-primary" onclick="handleLogin()">Sign In</button>
+        <p class="error-msg" id="login-error"></p>
+    </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app-screen">
+    <div class="top-bar">
+        <div class="top-bar-left"><h1>✨ Molly Jobs</h1></div>
+        <div class="top-bar-right">
+            <div class="user-pill">
+                <span class="role-dot" id="role-dot"></span>
+                <span id="user-name"></span>
+            </div>
+            <button class="btn-icon" onclick="handleLogout()" title="Sign Out">🚪</button>
+        </div>
+    </div>
+    <div class="main-content">
+        <div id="molly-earnings" style="display:none;">
+            <div class="earnings-summary">
+                <div class="big-number" id="total-earned">$0</div>
+                <div class="earnings-label">Total Earned (Paid)</div>
+                <div class="earnings-row">
+                    <div><div class="num" id="stat-pending-pay">$0</div><div class="lbl">Awaiting Payment</div></div>
+                    <div><div class="num" id="stat-jobs-done">0</div><div class="lbl">Jobs Completed</div></div>
+                    <div><div class="num" id="stat-jobs-active">0</div><div class="lbl">In Progress</div></div>
+                </div>
+            </div>
+        </div>
+        <div id="parent-stats" style="display:none;">
+            <div class="stats-row">
+                <div class="stat-card"><div class="stat-number" id="ps-open" style="color:var(--blue)">0</div><div class="stat-label">Open Jobs</div></div>
+                <div class="stat-card"><div class="stat-number" id="ps-accepted" style="color:var(--amber)">0</div><div class="stat-label">Accepted</div></div>
+                <div class="stat-card"><div class="stat-number" id="ps-completed" style="color:var(--green-dark)">0</div><div class="stat-label">Completed</div></div>
+                <div class="stat-card"><div class="stat-number" id="ps-total-paid" style="color:var(--purple)">$0</div><div class="stat-label">Total Paid</div></div>
+            </div>
+        </div>
+        <div class="tabs" id="tabs-container"></div>
+        <div id="tab-panels"></div>
+    </div>
+</div>
+
+<!-- NEW JOB MODAL -->
+<div class="modal-overlay" id="new-job-modal">
+    <div class="modal">
+        <h2>📝 Post a Job</h2>
+        <div class="form-group">
+            <label>Job Description</label>
+            <textarea id="job-desc" rows="3" placeholder="What needs to be done?"></textarea>
+        </div>
+        <div class="form-group">
+            <label>Pay ($)</label>
+            <input type="number" id="job-pay" placeholder="e.g. 10" step="0.50" min="0">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary" onclick="closeModal('new-job-modal')">Cancel</button>
+            <button class="btn btn-primary" style="width:auto" onclick="postJob()">Post Job</button>
+        </div>
+    </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="confirm-overlay" id="confirm-dialog">
+    <div class="confirm-box">
+        <p id="confirm-text">Are you sure?</p>
+        <div class="confirm-actions">
+            <button class="btn btn-secondary btn-small" onclick="closeConfirm()">Cancel</button>
+            <button class="btn btn-primary btn-small" style="width:auto" onclick="confirmAction()">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════
+// Firebase Config (hardcoded)
+// ══════════════════════════════════
+const firebaseConfig = {
+    apiKey: "AIzaSyDKj5vpqhHxorHHPqjlhDflY-j3qvnL_Js",
+    authDomain: "molly-s-jobs.firebaseapp.com",
+    projectId: "molly-s-jobs",
+    storageBucket: "molly-s-jobs.firebasestorage.app",
+    messagingSenderId: "792088289563",
+    appId: "1:792088289563:web:b35c8f21aea4110cbf73be",
+    measurementId: "G-E7HD6E8EBS"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+
+// ══════════════════════════════════
+// State
+// ══════════════════════════════════
+let currentUser = null;
+let allJobs = [];
+let confirmCallback = null;
+let emailJSConfig = null;
+
+const NOTIFY_EMAILS = ['aarontopol@hotmail.com', 'carlytopol@hotmail.com'];
+
+// ══════════════════════════════════
+// Auth
+// ══════════════════════════════════
+auth.onAuthStateChanged(async user => {
+    if (user) {
+        await loadUserRole(user);
+        showScreen('app');
+        setupTabs();
+        listenJobs();
+        loadEmailJSConfig();
+    } else {
+        showScreen('login');
+    }
+});
+
+async function loadUserRole(user) {
+    const doc = await db.collection('users').doc(user.uid).get();
+    if (doc.exists) {
+        const data = doc.data();
+        currentUser = { uid: user.uid, email: user.email, role: data.role, name: data.name };
+    } else {
+        const email = user.email.toLowerCase();
+        let role = 'child', name = 'Molly';
+        if (email.includes('aaron')) { role = 'parent'; name = 'Aaron'; }
+        else if (email.includes('carly')) { role = 'parent'; name = 'Carly'; }
+        await db.collection('users').doc(user.uid).set({ email: user.email, role, name });
+        currentUser = { uid: user.uid, email: user.email, role, name };
+    }
+    document.getElementById('user-name').textContent = currentUser.name;
+    document.getElementById('role-dot').style.background = currentUser.role === 'parent' ? 'var(--blue)' : 'var(--accent)';
+}
+
+function showScreen(name) {
+    document.getElementById('login-screen').style.display = name === 'login' ? 'flex' : 'none';
+    document.getElementById('app-screen').style.display = name === 'app' ? 'block' : 'none';
+}
+
+async function handleLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const pw = document.getElementById('login-password').value;
+    try {
+        await auth.signInWithEmailAndPassword(email, pw);
+    } catch (e) {
+        const el = document.getElementById('login-error');
+        el.textContent = (e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential')
+            ? 'Invalid email or password.' : e.message;
+        el.style.display = 'block';
+        setTimeout(() => el.style.display = 'none', 4000);
+    }
+}
+
+function handleLogout() { auth.signOut(); }
+
+// ══════════════════════════════════
+// EmailJS Config (Firestore)
+// ══════════════════════════════════
+async function loadEmailJSConfig() {
+    try {
+        const doc = await db.collection('settings').doc('emailjs').get();
+        if (doc.exists) {
+            emailJSConfig = doc.data();
+            if (emailJSConfig.pubkey) emailjs.init(emailJSConfig.pubkey);
+        }
+    } catch (e) { console.warn('Could not load EmailJS config:', e); }
+}
+
+async function saveEmailJSSettings() {
+    const pubkey = document.getElementById('ejs-pubkey').value.trim();
+    const service = document.getElementById('ejs-service').value.trim();
+    const template = document.getElementById('ejs-template').value.trim();
+    const data = { pubkey, service, template };
+    await db.collection('settings').doc('emailjs').set(data);
+    emailJSConfig = data;
+    if (pubkey) emailjs.init(pubkey);
+    const saved = document.getElementById('ejs-saved');
+    saved.style.display = 'block';
+    setTimeout(() => saved.style.display = 'none', 3000);
+    toast('EmailJS settings saved! 📧');
+}
+
+// ══════════════════════════════════
+// Tabs
+// ══════════════════════════════════
+function setupTabs() {
+    const isParent = currentUser.role === 'parent';
+    document.getElementById('molly-earnings').style.display = isParent ? 'none' : 'block';
+    document.getElementById('parent-stats').style.display = isParent ? 'block' : 'none';
+
+    let tabs;
+    if (isParent) {
+        tabs = [
+            { id: 'open', label: '📋 Open' },
+            { id: 'accepted', label: '🔄 In Progress' },
+            { id: 'completed', label: '✅ Completed' },
+            { id: 'paid', label: '💜 Paid' },
+            { id: 'settings', label: '⚙️ Settings' },
+        ];
+    } else {
+        tabs = [
+            { id: 'open', label: '📋 Available' },
+            { id: 'accepted', label: '🔄 My Jobs' },
+            { id: 'completed', label: '✅ Done' },
+            { id: 'paid', label: '💰 Paid' },
+        ];
+    }
+
+    const tabsEl = document.getElementById('tabs-container');
+    const panelsEl = document.getElementById('tab-panels');
+    tabsEl.innerHTML = '';
+    panelsEl.innerHTML = '';
+
+    if (isParent) {
+        const postBtn = document.createElement('button');
+        postBtn.className = 'tab';
+        postBtn.style.cssText = 'background:var(--green);color:white;font-weight:700;flex:0 0 auto;';
+        postBtn.textContent = '+ New Job';
+        postBtn.onclick = () => openModal('new-job-modal');
+        tabsEl.appendChild(postBtn);
+    }
+
+    tabs.forEach((t, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'tab' + (i === 0 ? ' active' : '');
+        btn.textContent = t.label;
+        btn.onclick = () => switchTab(t.id);
+        btn.dataset.tab = t.id;
+        tabsEl.appendChild(btn);
+
+        const panel = document.createElement('div');
+        panel.className = 'tab-content' + (i === 0 ? ' active' : '');
+        panel.id = 'panel-' + t.id;
+        panelsEl.appendChild(panel);
+    });
+
+    if (isParent) renderSettingsPanel();
+}
+
+function switchTab(id) {
+    document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab === id));
+    document.querySelectorAll('.tab-content').forEach(p => p.classList.toggle('active', p.id === 'panel-' + id));
+}
+
+function renderSettingsPanel() {
+    const panel = document.getElementById('panel-settings');
+    if (!panel) return;
+    panel.innerHTML = `
+        <div class="settings-section">
+            <h3>📧 Email Notifications (EmailJS)</h3>
+            <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;">
+                When Molly accepts a job, an email is sent to both parents. Set up a free account at
+                <a href="https://www.emailjs.com/" target="_blank" style="color:var(--accent)">emailjs.com</a>.<br>
+                Template variables: <code>{{to_email}}</code>, <code>{{job_description}}</code>, <code>{{job_pay}}</code>
+            </p>
+            <div class="form-group">
+                <label>Public Key</label>
+                <input type="text" id="ejs-pubkey" placeholder="e.g. abc123xyz" value="${emailJSConfig?.pubkey || ''}">
+            </div>
+            <div class="form-group">
+                <label>Service ID</label>
+                <input type="text" id="ejs-service" placeholder="e.g. service_abc123" value="${emailJSConfig?.service || ''}">
+            </div>
+            <div class="form-group">
+                <label>Template ID</label>
+                <input type="text" id="ejs-template" placeholder="e.g. template_abc123" value="${emailJSConfig?.template || ''}">
+            </div>
+            <button class="btn btn-primary" style="width:auto;padding:12px 32px;" onclick="saveEmailJSSettings()">Save Settings</button>
+            <div class="settings-saved" id="ejs-saved">✓ Settings saved to database</div>
+        </div>
+    `;
+}
+
+// ══════════════════════════════════
+// Firestore Listener
+// ══════════════════════════════════
+function listenJobs() {
+    db.collection('jobs').orderBy('createdAt', 'desc').onSnapshot(snap => {
+        allJobs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderAll();
+    });
+}
+
+// ══════════════════════════════════
+// Render
+// ══════════════════════════════════
+function renderAll() {
+    const open = allJobs.filter(j => j.status === 'open');
+    const accepted = allJobs.filter(j => j.status === 'accepted');
+    const completed = allJobs.filter(j => j.status === 'completed');
+    const paid = allJobs.filter(j => j.status === 'paid');
+
+    renderPanel('open', open);
+    renderPanel('accepted', accepted);
+    renderPanel('completed', completed);
+    renderPanel('paid', paid);
+
+    if (currentUser.role === 'parent') {
+        document.getElementById('ps-open').textContent = open.length;
+        document.getElementById('ps-accepted').textContent = accepted.length;
+        document.getElementById('ps-completed').textContent = completed.length;
+        const totalPaid = paid.reduce((s, j) => s + (parseFloat(j.pay) || 0), 0);
+        document.getElementById('ps-total-paid').textContent = '$' + totalPaid.toFixed(2);
+    } else {
+        const totalEarned = paid.reduce((s, j) => s + (parseFloat(j.pay) || 0), 0);
+        const pendingPay = completed.reduce((s, j) => s + (parseFloat(j.pay) || 0), 0);
+        document.getElementById('total-earned').textContent = '$' + totalEarned.toFixed(2);
+        document.getElementById('stat-pending-pay').textContent = '$' + pendingPay.toFixed(2);
+        document.getElementById('stat-jobs-done').textContent = completed.length + paid.length;
+        document.getElementById('stat-jobs-active').textContent = accepted.length;
+    }
+}
+
+function renderPanel(status, jobs) {
+    const panel = document.getElementById('panel-' + status);
+    if (!panel) return;
+    if (jobs.length === 0) {
+        const msgs = {
+            open: { emoji: '📭', text: 'No open jobs right now.' },
+            accepted: { emoji: '⏳', text: 'No jobs in progress.' },
+            completed: { emoji: '🎉', text: 'No completed jobs awaiting payment.' },
+            paid: { emoji: '💸', text: 'No paid jobs yet.' },
+        };
+        const m = msgs[status];
+        panel.innerHTML = `<div class="empty-state"><div class="empty-emoji">${m.emoji}</div><p>${m.text}</p></div>`;
+        return;
+    }
+    panel.innerHTML = '<div class="job-list">' + jobs.map(j => renderJobCard(j)).join('') + '</div>';
+}
+
+function renderJobCard(job) {
+    const isParent = currentUser.role === 'parent';
+    const date = job.createdAt ? new Date(job.createdAt.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    const poster = job.postedByName || 'Parent';
+    const badgeClass = { open: 'badge-open', accepted: 'badge-accepted', completed: 'badge-completed', paid: 'badge-paid' }[job.status];
+    const statusLabel = { open: 'Open', accepted: 'In Progress', completed: 'Completed', paid: 'Paid ✓' }[job.status];
+
+    let actions = '';
+    if (job.status === 'open') {
+        if (!isParent) actions += `<button class="btn btn-green btn-small" onclick="acceptJob('${job.id}')">✋ Accept Job</button>`;
+        if (isParent) {
+            actions += `<button class="btn btn-secondary btn-small" onclick="editJob('${job.id}')">✏️ Edit</button>`;
+            actions += `<button class="btn btn-secondary btn-small" onclick="deleteJob('${job.id}')">🗑 Delete</button>`;
+        }
+    }
+    if (job.status === 'accepted' && !isParent) actions += `<button class="btn btn-green btn-small" onclick="completeJob('${job.id}')">✅ Mark Complete</button>`;
+    if (job.status === 'completed' && isParent) actions += `<button class="btn btn-green btn-small" onclick="markPaid('${job.id}')">💰 Mark Paid</button>`;
+    if ((job.status === 'completed' || job.status === 'paid') && isParent) actions += `<button class="btn btn-secondary btn-small" onclick="repostJob('${job.id}')">🔄 Repost</button>`;
+
+    const acceptedDate = job.acceptedAt ? new Date(job.acceptedAt.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+    const completedDate = job.completedAt ? new Date(job.completedAt.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+    const paidDate = job.paidAt ? new Date(job.paidAt.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
+
+    let timeline = '';
+    if (acceptedDate) timeline += `<span>✋ Accepted ${acceptedDate}</span>`;
+    if (completedDate) timeline += `<span>✅ Done ${completedDate}</span>`;
+    if (paidDate) timeline += `<span>💰 Paid ${paidDate}</span>`;
+
+    return `
+        <div class="job-card status-${job.status}">
+            <div class="job-card-header">
+                <div>
+                    <h3>${escHtml(job.description)}</h3>
+                    <div class="job-meta">
+                        <span>📅 ${date}</span>
+                        <span>👤 ${escHtml(poster)}</span>
+                        ${timeline}
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div class="job-pay">$${parseFloat(job.pay).toFixed(2)}</div>
+                    <span class="status-badge ${badgeClass}">${statusLabel}</span>
+                </div>
+            </div>
+            ${actions ? `<div class="job-actions">${actions}</div>` : ''}
+        </div>
+    `;
+}
+
+// ══════════════════════════════════
+// Job Actions
+// ══════════════════════════════════
+async function postJob() {
+    const desc = document.getElementById('job-desc').value.trim();
+    const pay = document.getElementById('job-pay').value;
+    if (!desc || !pay) { toast('Please fill in all fields.'); return; }
+    await db.collection('jobs').add({
+        description: desc, pay: parseFloat(pay), status: 'open',
+        postedBy: currentUser.uid, postedByName: currentUser.name,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('job-desc').value = '';
+    document.getElementById('job-pay').value = '';
+    closeModal('new-job-modal');
+    toast('Job posted! ✨');
+}
+
+function acceptJob(id) {
+    showConfirm('Accept this job?', async () => {
+        await db.collection('jobs').doc(id).update({ status: 'accepted', acceptedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        toast('Job accepted! 💪');
+        sendNotificationEmail(id);
+    });
+}
+
+function completeJob(id) {
+    showConfirm('Mark this job as completed?', async () => {
+        await db.collection('jobs').doc(id).update({ status: 'completed', completedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        toast('Job marked complete! 🎉');
+    });
+}
+
+function markPaid(id) {
+    showConfirm('Confirm payment for this job?', async () => {
+        await db.collection('jobs').doc(id).update({ status: 'paid', paidBy: currentUser.name, paidAt: firebase.firestore.FieldValue.serverTimestamp() });
+        toast('Payment confirmed! 💰');
+    });
+}
+
+async function repostJob(id) {
+    const job = allJobs.find(j => j.id === id);
+    if (!job) return;
+    showConfirm(`Repost "${job.description}" as a new job?`, async () => {
+        await db.collection('jobs').add({
+            description: job.description, pay: job.pay, status: 'open',
+            postedBy: currentUser.uid, postedByName: currentUser.name,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        toast('Job reposted! 📋');
+    });
+}
+
+function editJob(id) {
+    const job = allJobs.find(j => j.id === id);
+    if (!job) return;
+    document.getElementById('job-desc').value = job.description;
+    document.getElementById('job-pay').value = job.pay;
+    openModal('new-job-modal');
+    const modal = document.getElementById('new-job-modal');
+    const postBtn = modal.querySelector('.btn-primary');
+    const origOnclick = postBtn.onclick;
+    postBtn.textContent = 'Update Job';
+    postBtn.onclick = async () => {
+        const desc = document.getElementById('job-desc').value.trim();
+        const pay = document.getElementById('job-pay').value;
+        if (!desc || !pay) { toast('Please fill in all fields.'); return; }
+        await db.collection('jobs').doc(id).update({ description: desc, pay: parseFloat(pay) });
+        document.getElementById('job-desc').value = '';
+        document.getElementById('job-pay').value = '';
+        closeModal('new-job-modal');
+        postBtn.textContent = 'Post Job';
+        postBtn.onclick = origOnclick;
+        toast('Job updated! ✏️');
+    };
+}
+
+function deleteJob(id) {
+    showConfirm('Delete this job?', async () => {
+        await db.collection('jobs').doc(id).delete();
+        toast('Job deleted.');
+    });
+}
+
+// ══════════════════════════════════
+// Email Notifications
+// ══════════════════════════════════
+function sendNotificationEmail(jobId) {
+    if (!emailJSConfig || !emailJSConfig.pubkey || !emailJSConfig.service || !emailJSConfig.template) return;
+    const job = allJobs.find(j => j.id === jobId);
+    if (!job) return;
+    NOTIFY_EMAILS.forEach(email => {
+        emailjs.send(emailJSConfig.service, emailJSConfig.template, {
+            to_email: email, job_description: job.description,
+            job_pay: '$' + parseFloat(job.pay).toFixed(2),
+        }).then(() => console.log('Email sent to', email))
+          .catch(e => console.warn('Email failed for', email, e));
+    });
+}
+
+// ══════════════════════════════════
+// Modals, Confirm, Toast, Util
+// ══════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('visible'); }
+function closeModal(id) {
+    document.getElementById(id).classList.remove('visible');
+    if (id === 'new-job-modal') {
+        const postBtn = document.querySelector('#new-job-modal .btn-primary');
+        postBtn.textContent = 'Post Job';
+        postBtn.onclick = postJob;
+    }
+}
+function showConfirm(text, callback) {
+    document.getElementById('confirm-text').textContent = text;
+    confirmCallback = callback;
+    document.getElementById('confirm-dialog').classList.add('visible');
+}
+function closeConfirm() { document.getElementById('confirm-dialog').classList.remove('visible'); confirmCallback = null; }
+function confirmAction() { if (confirmCallback) confirmCallback(); closeConfirm(); }
+
+function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('visible');
+    setTimeout(() => t.classList.remove('visible'), 2500);
+}
+
+function escHtml(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+document.addEventListener('click', e => {
+    if (e.target.classList.contains('modal-overlay') && e.target.classList.contains('visible')) closeModal(e.target.id);
+    if (e.target.classList.contains('confirm-overlay') && e.target.classList.contains('visible')) closeConfirm();
+});
+</script>
+</body>
+</html>
