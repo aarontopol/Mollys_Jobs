@@ -435,9 +435,12 @@ const auth = firebase.auth();
 let currentUser = null;
 let allJobs = [];
 let confirmCallback = null;
-let emailJSConfig = null;
+let emailJSConfig = { pubkey: 'nvJikHJgHvVzf_sbu', service: 'service_czovy35', template: 'template_5bnw8lb' };
 
 const NOTIFY_EMAILS = ['aarontopol@hotmail.com', 'carlytopol@hotmail.com'];
+
+// Init EmailJS immediately
+emailjs.init('nvJikHJgHvVzf_sbu');
 
 // ══════════════════════════════════
 // Auth: Login / Signup
@@ -497,7 +500,6 @@ auth.onAuthStateChanged(async user => {
         showScreen('app');
         setupTabs();
         listenJobs();
-        loadEmailJSConfig();
     } else {
         showScreen('login');
     }
@@ -538,33 +540,6 @@ async function handleLogin() {
 function handleLogout() { auth.signOut(); }
 
 // ══════════════════════════════════
-// EmailJS Config (Firestore)
-// ══════════════════════════════════
-async function loadEmailJSConfig() {
-    try {
-        const doc = await db.collection('settings').doc('emailjs').get();
-        if (doc.exists) {
-            emailJSConfig = doc.data();
-            if (emailJSConfig.pubkey) emailjs.init(emailJSConfig.pubkey);
-        }
-    } catch (e) { console.warn('Could not load EmailJS config:', e); }
-}
-
-async function saveEmailJSSettings() {
-    const pubkey = document.getElementById('ejs-pubkey').value.trim();
-    const service = document.getElementById('ejs-service').value.trim();
-    const template = document.getElementById('ejs-template').value.trim();
-    const data = { pubkey, service, template };
-    await db.collection('settings').doc('emailjs').set(data);
-    emailJSConfig = data;
-    if (pubkey) emailjs.init(pubkey);
-    const saved = document.getElementById('ejs-saved');
-    saved.style.display = 'block';
-    setTimeout(() => saved.style.display = 'none', 3000);
-    toast('EmailJS settings saved! 📧');
-}
-
-// ══════════════════════════════════
 // Tabs
 // ══════════════════════════════════
 function setupTabs() {
@@ -579,7 +554,6 @@ function setupTabs() {
             { id: 'accepted', label: '🔄 In Progress' },
             { id: 'completed', label: '✅ Completed' },
             { id: 'paid', label: '💜 Paid' },
-            { id: 'settings', label: '⚙️ Settings' },
         ];
     } else {
         tabs = [
@@ -618,41 +592,11 @@ function setupTabs() {
         panelsEl.appendChild(panel);
     });
 
-    if (isParent) renderSettingsPanel();
 }
 
 function switchTab(id) {
     document.querySelectorAll('.tab[data-tab]').forEach(t => t.classList.toggle('active', t.dataset.tab === id));
     document.querySelectorAll('.tab-content').forEach(p => p.classList.toggle('active', p.id === 'panel-' + id));
-}
-
-function renderSettingsPanel() {
-    const panel = document.getElementById('panel-settings');
-    if (!panel) return;
-    panel.innerHTML = `
-        <div class="settings-section">
-            <h3>📧 Email Notifications (EmailJS)</h3>
-            <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:16px;">
-                When Molly accepts a job, an email is sent to both parents. Set up a free account at
-                <a href="https://www.emailjs.com/" target="_blank" style="color:var(--accent)">emailjs.com</a>.<br>
-                Template variables: <code>{{to_email}}</code>, <code>{{job_description}}</code>, <code>{{job_pay}}</code>
-            </p>
-            <div class="form-group">
-                <label>Public Key</label>
-                <input type="text" id="ejs-pubkey" placeholder="e.g. abc123xyz" value="${emailJSConfig?.pubkey || ''}">
-            </div>
-            <div class="form-group">
-                <label>Service ID</label>
-                <input type="text" id="ejs-service" placeholder="e.g. service_abc123" value="${emailJSConfig?.service || ''}">
-            </div>
-            <div class="form-group">
-                <label>Template ID</label>
-                <input type="text" id="ejs-template" placeholder="e.g. template_abc123" value="${emailJSConfig?.template || ''}">
-            </div>
-            <button class="btn btn-primary" style="width:auto;padding:12px 32px;" onclick="saveEmailJSSettings()">Save Settings</button>
-            <div class="settings-saved" id="ejs-saved">✓ Settings saved to database</div>
-        </div>
-    `;
 }
 
 // ══════════════════════════════════
