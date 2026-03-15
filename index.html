@@ -279,6 +279,15 @@
 
         .role-pick { transition: all 0.2s; }
         .role-pick.active { background: var(--accent) !important; color: white !important; border-color: var(--accent) !important; }
+        .jobtype-pick { transition: all 0.2s; }
+        .jobtype-pick.active { background: var(--accent) !important; color: white !important; border-color: var(--accent) !important; }
+        .type-tag {
+            display: inline-flex; align-items: center; gap: 3px;
+            font-size: 0.72rem; font-weight: 600; padding: 2px 8px;
+            border-radius: 100px; text-transform: uppercase; letter-spacing: 0.03em;
+        }
+        .type-tag.recurring { background: #e0f2fe; color: #0284c7; }
+        .type-tag.onetime { background: #f3f4f6; color: #6b7280; }
     </style>
 </head>
 <body>
@@ -389,6 +398,17 @@
         <div class="form-group">
             <label>Pay ($)</label>
             <input type="number" id="job-pay" placeholder="e.g. 10" step="0.50" min="0">
+        </div>
+        <div class="form-group">
+            <label>Job Type</label>
+            <div style="display:flex;gap:8px;margin-top:4px;">
+                <button class="btn btn-secondary btn-small jobtype-pick active" data-type="onetime" onclick="pickJobType('onetime')" style="flex:1;padding:14px 12px;">
+                    1️⃣ One-Time
+                </button>
+                <button class="btn btn-secondary btn-small jobtype-pick" data-type="recurring" onclick="pickJobType('recurring')" style="flex:1;padding:14px 12px;">
+                    🔁 Recurring
+                </button>
+            </div>
         </div>
         <div class="modal-actions">
             <button class="btn btn-secondary" onclick="closeModal('new-job-modal')">Cancel</button>
@@ -662,6 +682,10 @@ function renderJobCard(job) {
     const poster = job.postedByName || 'Parent';
     const badgeClass = { open: 'badge-open', accepted: 'badge-accepted', completed: 'badge-completed', paid: 'badge-paid' }[job.status];
     const statusLabel = { open: 'Open', accepted: 'In Progress', completed: 'Completed', paid: 'Paid ✓' }[job.status];
+    const isRecurring = job.jobType === 'recurring';
+    const typeTag = isRecurring
+        ? '<span class="type-tag recurring">🔁 Recurring</span>'
+        : '<span class="type-tag onetime">1️⃣ One-Time</span>';
 
     let actions = '';
     if (job.status === 'open') {
@@ -673,7 +697,8 @@ function renderJobCard(job) {
     }
     if (job.status === 'accepted' && !isParent) actions += `<button class="btn btn-green btn-small" onclick="completeJob('${job.id}')">✅ Mark Complete</button>`;
     if (job.status === 'completed' && isParent) actions += `<button class="btn btn-green btn-small" onclick="markPaid('${job.id}')">💰 Mark Paid</button>`;
-    if ((job.status === 'completed' || job.status === 'paid') && isParent) actions += `<button class="btn btn-secondary btn-small" onclick="repostJob('${job.id}')">🔄 Repost</button>`;
+    // Only show repost for one-time jobs (recurring auto-reposts)
+    if ((job.status === 'completed' || job.status === 'paid') && isParent && !isRecurring) actions += `<button class="btn btn-secondary btn-small" onclick="repostJob('${job.id}')">🔄 Repost</button>`;
 
     const acceptedDate = job.acceptedAt ? new Date(job.acceptedAt.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
     const completedDate = job.completedAt ? new Date(job.completedAt.seconds * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
@@ -688,7 +713,7 @@ function renderJobCard(job) {
         <div class="job-card status-${job.status}">
             <div class="job-card-header">
                 <div>
-                    <h3>${escHtml(job.description)}</h3>
+                    <h3>${escHtml(job.description)} ${typeTag}</h3>
                     <div class="job-meta">
                         <span>📅 ${date}</span>
                         <span>👤 ${escHtml(poster)}</span>
@@ -708,17 +733,29 @@ function renderJobCard(job) {
 // ══════════════════════════════════
 // Job Actions
 // ══════════════════════════════════
+let selectedJobType = 'onetime';
+
+function pickJobType(type) {
+    selectedJobType = type;
+    document.querySelectorAll('.jobtype-pick').forEach(b => {
+        b.classList.toggle('active', b.dataset.type === type);
+    });
+}
+
 async function postJob() {
     const desc = document.getElementById('job-desc').value.trim();
     const pay = document.getElementById('job-pay').value;
     if (!desc || !pay) { toast('Please fill in all fields.'); return; }
     await db.collection('jobs').add({
         description: desc, pay: parseFloat(pay), status: 'open',
+        jobType: selectedJobType,
         postedBy: currentUser.uid, postedByName: currentUser.name,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     document.getElementById('job-desc').value = '';
     document.getElementById('job-pay').value = '';
+    selectedJobType = 'onetime';
+    document.querySelectorAll('.jobtype-pick').forEach(b => b.classList.toggle('active', b.dataset.type === 'onetime'));
     closeModal('new-job-modal');
     toast('Job posted! ✨');
 }
@@ -740,8 +777,20 @@ function completeJob(id) {
 
 function markPaid(id) {
     showConfirm('Confirm payment for this job?', async () => {
+        const job = allJobs.find(j => j.id === id);
         await db.collection('jobs').doc(id).update({ status: 'paid', paidBy: currentUser.name, paidAt: firebase.firestore.FieldValue.serverTimestamp() });
         toast('Payment confirmed! 💰');
+
+        // Auto-repost recurring jobs
+        if (job && job.jobType === 'recurring') {
+            await db.collection('jobs').add({
+                description: job.description, pay: job.pay, status: 'open',
+                jobType: 'recurring',
+                postedBy: job.postedBy, postedByName: job.postedByName,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            toast('Recurring job reposted! 🔁');
+        }
     });
 }
 
@@ -751,6 +800,7 @@ async function repostJob(id) {
     showConfirm(`Repost "${job.description}" as a new job?`, async () => {
         await db.collection('jobs').add({
             description: job.description, pay: job.pay, status: 'open',
+            jobType: job.jobType || 'onetime',
             postedBy: currentUser.uid, postedByName: currentUser.name,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
         });
@@ -763,6 +813,9 @@ function editJob(id) {
     if (!job) return;
     document.getElementById('job-desc').value = job.description;
     document.getElementById('job-pay').value = job.pay;
+    // Set job type picker
+    selectedJobType = job.jobType || 'onetime';
+    document.querySelectorAll('.jobtype-pick').forEach(b => b.classList.toggle('active', b.dataset.type === selectedJobType));
     openModal('new-job-modal');
     const modal = document.getElementById('new-job-modal');
     const postBtn = modal.querySelector('.btn-primary');
@@ -772,7 +825,7 @@ function editJob(id) {
         const desc = document.getElementById('job-desc').value.trim();
         const pay = document.getElementById('job-pay').value;
         if (!desc || !pay) { toast('Please fill in all fields.'); return; }
-        await db.collection('jobs').doc(id).update({ description: desc, pay: parseFloat(pay) });
+        await db.collection('jobs').doc(id).update({ description: desc, pay: parseFloat(pay), jobType: selectedJobType });
         document.getElementById('job-desc').value = '';
         document.getElementById('job-pay').value = '';
         closeModal('new-job-modal');
